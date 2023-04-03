@@ -28,9 +28,9 @@
 #define USE_SERVO
 #ifdef USE_SERVO
 #if defined(ARDUINO_M5STACK_Core2)
-//  #define SERVO_PIN_X 13  //Core2 PORT C
-//  #define SERVO_PIN_Y 14
-  #define SERVO_PIN_X 13  //Core2 PORT A
+//  #define SERVO_PIN_X 33  //Core2 PORT A
+//  #define SERVO_PIN_Y 34
+  #define SERVO_PIN_X 13  //Core2 PORT C
   #define SERVO_PIN_Y 14
 #elif defined( ARDUINO_M5STACK_FIRE )
   #define SERVO_PIN_X 21
@@ -787,9 +787,11 @@ unsigned long countdownStartMillis = 0;
 int elapsedMinutes = 0;
 int elapsedSeconds = 0;
 bool countdownStarted = false;
+bool countdownInProgress = false; // Aボタンが押されているかの判定
 
-const char *text3T = "ラーメンタイマーモード、スタックチャンが3分間、カウントダウンをしますね。";
-const char *text3T3 = "3分経ちました、カウントダウンを終了します。";
+const char *text3T = "スタックチャンが3分間、カウントダウンをしますね。";
+const char *text3T3 = "3分経ちました、カウントダウンを終了しますね。";
+const char *text3TEND = "ボタンが押されたので、カウントダウンを終了しますね。";
 
 
 
@@ -1027,9 +1029,20 @@ void loop()
     Serial.println("mp3 begin");
   }
 
-  // BtnAが押されたときにカウントダウンを開始する処理を追加
-  if (M5.BtnA.wasPressed())
-  {
+// BtnAが押されたときの処理
+if (M5.BtnA.wasPressed()) {
+  if (countdownStarted) {
+    // カウントダウン進行中の場合、リセットしてメッセージを再生する
+    countdownStarted = false;
+    elapsedMinutes = 0;
+    elapsedSeconds = 0;
+
+    M5.Speaker.tone(1000, 100);
+    avatar.setExpression(Expression::Happy);
+    VoiceText_tts(text3TEND, tts_parms2);
+    avatar.setExpression(Expression::Neutral);
+  } else {
+    // カウントダウンが開始されていない場合、通常のカウントダウン開始処理を行う
     M5.Speaker.tone(1000, 100);
     avatar.setExpression(Expression::Happy);
     VoiceText_tts(text3T, tts_parms2);
@@ -1039,11 +1052,14 @@ void loop()
     countdownStarted = true;
     countdownStartMillis = millis();
   }
+}
+
+  // 既存のカウントダウン処理
 
 if (countdownStarted)
 {
   unsigned long elapsedTime = millis() - countdownStartMillis;
-  
+    
   int currentElapsedSeconds = elapsedTime / 1000;
 
   if (currentElapsedSeconds != elapsedSeconds)
