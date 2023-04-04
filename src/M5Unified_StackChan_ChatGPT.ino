@@ -19,23 +19,30 @@
 #include <ESP32WebServer.h>
 #include <ESPmDNS.h>
 
+#include <Adafruit_NeoPixel.h>
+
 #define USE_SDCARD
 #define WIFI_SSID "SET YOUR WIFI SSID"
 #define WIFI_PASS "SET YOUR WIFI PASS"
 #define OPENAI_APIKEY "SET YOUR OPENAI APIKEY"
 #define VOICETEXT_APIKEY "SET YOUR VOICETEXT APIKEY"
 
+#define PIN 25 //GPIO25でLEDを使用する
+#define NUM_LEDS 10 //LEDの数を指定する
+
+Adafruit_NeoPixel pixels(NUM_LEDS, PIN, NEO_GRB + NEO_KHZ800); //800kHzでNeoPixelを駆動 おまじない行
+
 #define USE_SERVO
 #ifdef USE_SERVO
 #if defined(ARDUINO_M5STACK_Core2)
-//  #define SERVO_PIN_X 33  //Core2 PORT A
-//  #define SERVO_PIN_Y 34
-  #define SERVO_PIN_X 13  //Core2 PORT C
+  #define SERVO_PIN_X 13
   #define SERVO_PIN_Y 14
 #elif defined( ARDUINO_M5STACK_FIRE )
+  #include <M5Stack.h>
   #define SERVO_PIN_X 21
   #define SERVO_PIN_Y 22
 #elif defined( ARDUINO_M5Stack_Core_ESP32 )
+  #include <M5Stack.h>
   #define SERVO_PIN_X 21
   #define SERVO_PIN_Y 22
 #endif
@@ -794,11 +801,20 @@ const char *text3T3 = "3分経ちました、カウントダウンを終了し�
 const char *text3TEND = "ボタンが押されたので、カウントダウンを終了しますね。";
 
 
-
 void setup()
 {
-  auto cfg = M5.config();
+  M5.begin();
+  
+  pixels.begin();
 
+  // LEDの初期化と消灯
+  for (int i = 0; i < NUM_LEDS; i++) {
+    pixels.setPixelColor(i, pixels.Color(0, 0, 0));
+  }
+  pixels.show();
+
+  auto cfg = M5.config();
+  
   cfg.external_spk = true;    /// use external speaker (SPK HAT / ATOMIC SPK)
 //cfg.external_spk_detail.omit_atomic_spk = true; // exclude ATOMIC SPK
 //cfg.external_spk_detail.omit_spk_hat    = true; // exclude SPK HAT
@@ -989,6 +1005,7 @@ void setup()
 }
 
 void loop()
+
 {
   static int lastms = 0;
 
@@ -1029,53 +1046,73 @@ void loop()
     Serial.println("mp3 begin");
   }
 
-// BtnAが押されたときの処理
-if (M5.BtnA.wasPressed()) {
-  if (countdownStarted) {
-    // カウントダウン進行中の場合、リセットしてメッセージを再生する
-    countdownStarted = false;
-    elapsedMinutes = 0;
-    elapsedSeconds = 0;
+  // BtnAが押されたときの処理
+  if (M5.BtnA.wasPressed()) {
+    if (countdownStarted) {
+      countdownStarted = false;
+      elapsedMinutes = 0;
+      elapsedSeconds = 0;
+  for (int i = 0; i < NUM_LEDS; i++) {
 
-    M5.Speaker.tone(1000, 100);
-    avatar.setExpression(Expression::Happy);
-    VoiceText_tts(text3TEND, tts_parms2);
-    avatar.setExpression(Expression::Neutral);
-  } else {
-    // カウントダウンが開始されていない場合、通常のカウントダウン開始処理を行う
-    M5.Speaker.tone(1000, 100);
-    avatar.setExpression(Expression::Happy);
-    VoiceText_tts(text3T, tts_parms2);
-    avatar.setExpression(Expression::Neutral);
-    Serial.println("mp3 begin");
+      pixels.setPixelColor(i, pixels.Color(0, 0, 0));
+      }
+      pixels.show();
 
-    countdownStarted = true;
-    countdownStartMillis = millis();
+      pixels.setPixelColor(2, pixels.Color(255, 0, 0));
+      pixels.setPixelColor(7, pixels.Color(255, 0, 0));
+
+      M5.Speaker.tone(1000, 100);  
+      VoiceText_tts(text3TEND, tts_parms2);
+      pixels.show();
+      delay(2000); // 0.5秒待機
+
+   // 全てのLEDを消灯
+  for (int i = 0; i < NUM_LEDS; i++) {
+    pixels.setPixelColor(i, pixels.Color(0, 0, 0));
   }
-}
+  pixels.show();
+  delay(500); // 0.5秒待機
+      }
+     else {
 
-  // 既存のカウントダウン処理
+  for (int i = 0; i < NUM_LEDS; i++) {
 
-if (countdownStarted)
-{
+      pixels.setPixelColor(i, pixels.Color(0, 0, 0));
+      }
+      pixels.show();
+
+      pixels.setPixelColor(2, pixels.Color(0, 0, 255));
+      pixels.setPixelColor(7, pixels.Color(0, 0, 255));
+
+      M5.Speaker.tone(1000, 100);
+      VoiceText_tts(text3T, tts_parms2);
+      countdownStarted = true;
+      countdownStartMillis = millis();
+    }
+  }
+
+  if (countdownStarted) {
   unsigned long elapsedTime = millis() - countdownStartMillis;
-    
+
   int currentElapsedSeconds = elapsedTime / 1000;
 
-  if (currentElapsedSeconds != elapsedSeconds)
-  {
+if (currentElapsedSeconds != elapsedSeconds) {
     elapsedSeconds = currentElapsedSeconds;
 
+    // 1秒ごとにLEDを更新する処理を追加
+    int ledIndex = elapsedSeconds % 10;
+    int previousLedIndex = (ledIndex + 9) % 10; // 1つ前のLEDのインデックスを計算
+    pixels.setPixelColor(previousLedIndex, 0, 0, 0); // 1つ前のLEDを消す
+    //pixels.setPixelColor(ledIndex - 1, 0, 0, 0); // 1つ前のLEDを消す
+    pixels.setPixelColor(ledIndex, 0, 0, 255); // 現在のLEDを青色で点灯
+    pixels.show(); // LEDの状態を更新
+
     // 10秒間隔で読み上げ
-    if (elapsedSeconds % 10 == 0 && elapsedSeconds < 180)
-    {
+    if (elapsedSeconds % 10 == 0 && elapsedSeconds < 180) {
       char buffer[64];
-      if (elapsedSeconds < 60)
-      {
+      if (elapsedSeconds < 60) {
         sprintf(buffer, "%d秒。", elapsedSeconds);
-      }
-      else
-      {
+      } else {
         int minutes = elapsedSeconds / 60;
         int seconds = elapsedSeconds % 60;
         if (seconds != 0) {
@@ -1088,19 +1125,38 @@ if (countdownStarted)
       VoiceText_tts(buffer, tts_parms6);
       avatar.setExpression(Expression::Neutral);
     }
+}
 
-    // 3分経過時にテキストを音声再生
-    if (elapsedSeconds == 180)
-    {
-      avatar.setExpression(Expression::Happy);
-      VoiceText_tts(text3T3, tts_parms2);
-      avatar.setExpression(Expression::Neutral);
-      countdownStarted = false;
-      elapsedMinutes = 0;
-      elapsedSeconds = 0;
+  // 3分経過時にテキストを音声再生
+  if (elapsedSeconds == 180) {
+    // 全てのLEDを消す処理を追加
+    for (int i = 0; i < NUM_LEDS; i++) {
+      pixels.setPixelColor(i, 0, 0, 0);
+    }
+    pixels.show(); // LEDの状態を更新
+
+    for (int i = 0; i < NUM_LEDS; i++) {
+
+    pixels.setPixelColor(i, pixels.Color(0, 0, 0));
+      }
+    pixels.show();
+
+    pixels.setPixelColor(2, pixels.Color(0, 255, 0));
+    pixels.setPixelColor(7, pixels.Color(0, 255, 0));
+    pixels.show();
+
+    avatar.setExpression(Expression::Happy);
+    VoiceText_tts(text3T3, tts_parms2);
+    avatar.setExpression(Expression::Neutral);
+
+      // カウントダウンをリセット
+    countdownStarted = false;
+    elapsedMinutes = 0;
+    elapsedSeconds = 0;
+  
     }
   }
-}
+          
 
   if(speech_text != ""){
     speech_text_buffer = speech_text;
