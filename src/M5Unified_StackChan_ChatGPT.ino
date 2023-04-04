@@ -1149,6 +1149,13 @@ if (currentElapsedSeconds != elapsedSeconds) {
     VoiceText_tts(text3T3, tts_parms2);
     avatar.setExpression(Expression::Neutral);
 
+        // 全てのLEDを消す処理を追加
+    for (int i = 0; i < NUM_LEDS; i++) {
+      pixels.setPixelColor(i, 0, 0, 0);
+    }
+    pixels.show(); // LEDの状態を更新
+
+
       // カウントダウンをリセット
     countdownStarted = false;
     elapsedMinutes = 0;
