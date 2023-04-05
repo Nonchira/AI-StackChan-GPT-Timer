@@ -1,7 +1,7 @@
 // certificate for https://api.openai.com
-// Baltimore CyberTrust Root, valid until Wed Jan 01 2025, size: 1379 bytes //
+// Baltimore CyberTrust Root, valid until Wed Jan 01 2025, size: 1379 bytes
 const char* root_ca_openai =
-"-----BEGIN CERTIFICATE-----\n"
+"------BEGIN CERTIFICATE------\n"
 "MIIDzTCCArWgAwIBAgIQCjeHZF5ftIwiTv0b7RQMPDANBgkqhkiG9w0BAQsFADBa\n"
 "MQswCQYDVQQGEwJJRTESMBAGA1UEChMJQmFsdGltb3JlMRMwEQYDVQQLEwpDeWJl\n"
 "clRydXN0MSIwIAYDVQQDExlCYWx0aW1vcmUgQ3liZXJUcnVzdCBSb290MB4XDTIw\n"
@@ -23,5 +23,5 @@ const char* root_ca_openai =
 "goE6y/SJXQ7vTQ1unBuCJN0yJV0ReFEQPaA1IwQvZW+cwdFD19Ae8zFnWSfda9J1\n"
 "CZMRJCQUzym+5iPDuI9yP+kHyCREU3qzuWFloUwOxkgAyXVjBYdwRVKD05WdRerw\n"
 "6DEdfgkfCv4+3ao8XnTSrLE=\n"
-"-----END CERTIFICATE-----\n"
+"------END CERTIFICATE------\n"
 "";
