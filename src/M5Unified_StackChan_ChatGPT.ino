@@ -72,6 +72,37 @@ const char *tts_parms6 = "&emotion=happiness&format=mp3&speaker=hikari&volume=15
 const char *tts_parms_table[6] = {tts_parms1, tts_parms2, tts_parms3, tts_parms4, tts_parms5};
 int tts_parms_no = 1;
 
+#include <deque>
+
+// 保存する質問と回答の最大数
+const int MAX_HISTORY = 3;
+
+// 過去の質問と回答を保存するデータ構造
+std::deque<String> chatHistory;
+
+// テキストデータを句読点単位で分割する関数
+
+bool isPunctuation(char16_t c) {
+  return c == u'、' || c == u'。';
+}
+
+std::vector<String> splitText(const String& text) {
+  std::vector<String> segments;
+  String segment = "";
+  for (int i = 0; i < text.length(); i++) {
+    char16_t c = text.charAt(i);
+    segment += String(c);
+    if (isPunctuation(c)) {
+      segments.push_back(segment);
+      segment = "";
+    }
+  }
+  if (segment != "") {
+    segments.push_back(segment);
+  }
+  return segments;
+}
+
 // C++11 multiline string constants are neato...
 static const char HEAD[] PROGMEM = R"KEWL(
 <!DOCTYPE html>
@@ -399,30 +430,45 @@ String chatGpt(String json_string)
 
 void handle_chat()
 {
-  static String response = "";
-  tts_parms_no = 1;
   String text = server.arg("text");
-  String voice = server.arg("voice");
-  if (voice != "")
+
+  // 質問をチャット履歴に追加
+  chatHistory.push_back(text);
+
+  // チャット履歴が最大数を超えた場合、古い質問と回答を削除
+  if (chatHistory.size() > MAX_HISTORY * 2)
   {
-    tts_parms_no = voice.toInt();
-    if (tts_parms_no < 0)
-      tts_parms_no = 0;
-    if (tts_parms_no > 4)
-      tts_parms_no = 4;
+    chatHistory.pop_front();
+    chatHistory.pop_front();
   }
 
-  String role = chat_doc["messages"][0]["role"];
-  if (role == "user")
+  String messagesJson = "[";
+  for (int i = 0; i < chatHistory.size(); i++)
   {
-    chat_doc["messages"][0]["content"] = text;
+    messagesJson += String("{\"role\": \"") + (i % 2 == 0 ? "user" : "assistant") + "\", \"content\": \"" + chatHistory[i] + "\"}";
+    if (i < chatHistory.size() - 1)
+    {
+      messagesJson += ",";
+    }
   }
-  String json_string;
-  serializeJson(chat_doc, json_string);
+  messagesJson += "]";
 
-  response = chatGpt(json_string);
+  String json_string = "{\"model\": \"gpt-3.5-turbo\",\"messages\": " + messagesJson + "}";
+
+  String response = chatGpt(json_string);
   speech_text = response;
-  server.send(200, "text/html", String(HEAD) + String("<body>") + response + String("</body>"));
+
+  // 返答をチャット履歴に追加
+  chatHistory.push_back(response);
+
+  // テキストデータを句読点単位で分割し、順次送信
+  std::vector<String> segments = splitText(response);
+  String htmlResponse = "";
+  for (const String &segment : segments)
+  {
+    htmlResponse += segment;
+  }
+  server.send(200, "text/html", String(HEAD) + String("<body>") + htmlResponse + String("</body>"));
 }
 
 void handle_apikey()
